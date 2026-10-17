@@ -1,0 +1,85 @@
+@startuml c4_containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+skinparam ranksep 90
+skinparam nodesep 50
+skinparam linetype polyline
+title C4 Container - MVP открытия депозитов онлайн (банк Стандарт)
+
+Person_Ext(prospect, "Новый клиент", "Ещё не клиент банка")
+Person(client, "Клиент банка", "Пользователь интернет-банка")
+Person(staff, "Сотрудники банка", "Кол-центр, бэк-офис, отделения")
+
+System(site, "Сайт", "PHP, React.js. Каталог депозитов и форма заявки")
+
+System_Boundary(ib, "Интернет-банк") {
+  Container(ib_web, "Веб-приложение интернет-банка", "ASP.NET MVC 4.5, .NET Framework 4.5", "Существующий монолит. Раздел Депозиты и вызовы API контура")
+  ContainerDb(ib_db, "БД интернет-банка", "MS SQL", "Пользователи, сессии. Без изменений")
+
+  Container(gw, "API-шлюз депозитов", ".NET", "Вход в контур по HTTPS")
+  Container(apps, "Сервис заявок", ".NET", "Приём и хранение заявок с сайта и из интернет-банка")
+  Container(rates, "Сервис ставок", ".NET", "Каталог продуктов, базовые и персональные ставки")
+  Container(notif, "Сервис СМС", ".NET", "СМС-коды подтверждения и уведомления о статусе")
+
+  ContainerDb(apps_db, "БД заявок", "PostgreSQL", "Заявки и статусы")
+  ContainerDb(rates_db, "БД ставок", "PostgreSQL", "Копия ставок из АБС")
+  ContainerDb(notif_db, "БД уведомлений", "PostgreSQL", "Журнал СМС")
+}
+
+System(sms, "СМС-шлюз", "Сопровождает IT-отдел банка")
+System_Ext(telecom, "Телеком-оператор", "Доставка СМС")
+
+ContainerQueue(kafka, "Корпоративная шина событий", "Apache Kafka, новая", "Обмен ставками, заявками и статусами")
+
+System(cc, "Система кол-центра", "Java, Spring Boot. Приём заявок с сайта из Kafka")
+
+System_Boundary(abs, "АБС") {
+  Container(abs_int, "Интеграционный сервис АБС", "Java, Spring Boot", "Заявки из Kafka в АБС, публикация ставок и статусов")
+  ContainerDb(abs_db, "БД АБС", "Oracle, PL/SQL", "Счета и депозиты. Модули ставок и заявок, разграничение доступа")
+  Container(abs_client, "Клиент АБС", "Delphi", "Формы: ставки, согласование заявок, оценка риска")
+}
+
+Rel_D(prospect, site, "Смотрит депозиты, оставляет заявку", "HTTPS")
+Rel_D(client, ib_web, "Ставки, заявка, СМС-код", "HTTPS")
+
+Rel_D(site, gw, "Ставки, заявка", "REST / HTTPS")
+Rel_D(ib_web, gw, "Ставки, заявка, СМС-код, статус", "REST / HTTPS")
+Rel_L(ib_web, ib_db, "Сессия", "SQL")
+Rel(ib_web, abs_db, "Счета клиента, платежи", "существующая интеграция")
+
+Rel_D(gw, apps, "Заявки", "REST")
+Rel_D(gw, rates, "Ставки", "REST")
+Rel_R(apps, notif, "СМС-код", "REST")
+
+Rel_D(apps, apps_db, "Чтение и запись", "SQL")
+Rel_D(rates, rates_db, "Чтение и запись", "SQL")
+Rel_D(notif, notif_db, "Чтение и запись", "SQL")
+
+BiRel_D(apps, kafka, "Заявки, статусы", "Kafka")
+Rel_U(kafka, rates, "Ставки", "Kafka")
+Rel_U(kafka, notif, "Статусы", "Kafka")
+Rel_R(kafka, cc, "Заявки с сайта", "Kafka")
+
+BiRel_D(kafka, abs_int, "Заявки, ставки, статусы", "Kafka")
+Rel_D(abs_int, abs_db, "Чтение и запись", "SQL")
+Rel_U(abs_client, abs_db, "Работа по ролям", "SQL")
+Rel(cc, abs_db, "Обращения", "существующая интеграция")
+
+Rel_D(staff, cc, "Обрабатывает заявки с сайта")
+Rel(staff, abs_client, "Ставки, согласование, открытие депозита")
+
+Rel_D(notif, sms, "СМС", "HTTPS")
+Rel(abs_db, sms, "СМС о ставке по обращениям", "существующая интеграция")
+Rel_D(sms, telecom, "Отправка СМС")
+
+Lay_R(prospect, client)
+Lay_R(client, staff)
+Lay_L(ib_web, site)
+Lay_R(notif, apps)
+Lay_R(apps, rates)
+Lay_D(apps_db, kafka)
+Lay_D(kafka, abs_int)
+Lay_D(notif_db, sms)
+
+@enduml

@@ -1,0 +1,41 @@
+@startuml c4_context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+skinparam ranksep 70
+skinparam nodesep 40
+title C4 Context - MVP открытия депозитов онлайн (банк Стандарт)
+
+Person_Ext(prospect, "Новый клиент", "Ещё не клиент банка")
+Person(client, "Клиент банка", "Пользователь интернет-банка")
+Person(staff, "Сотрудники банка", "Кол-центр, бэк-офис, отделения")
+
+System(site, "Сайт", "Каталог депозитов и форма заявки")
+System(ib, "Интернет-банк", "Монолит и контур Депозиты")
+System(cc, "Система кол-центра", "Обработка заявок с сайта")
+SystemQueue(kafka, "Корпоративная шина событий", "Apache Kafka, новая")
+System(abs, "АБС", "Ставки, согласование, депозиты")
+System(sms, "СМС-шлюз", "Сопровождает IT-отдел банка")
+System_Ext(telecom, "Телеком-оператор", "Доставка СМС")
+
+Rel_D(prospect, site, "Смотрит депозиты, оставляет заявку", "HTTPS")
+Rel_D(client, ib, "Ставки, заявка, СМС-код", "HTTPS")
+Rel_D(staff, cc, "Обрабатывает заявки с сайта")
+Rel_D(staff, abs, "Ставки, согласование, открытие депозита")
+
+Rel_R(site, ib, "Ставки и заявки", "REST / HTTPS")
+BiRel_D(ib, kafka, "Заявки, ставки, статусы", "асинхронно")
+Rel_R(kafka, cc, "Заявки с сайта", "асинхронно")
+BiRel_D(kafka, abs, "Заявки, ставки, статусы", "асинхронно")
+Rel(cc, abs, "Обращения", "существующая интеграция")
+Rel(ib, abs, "Счета клиента, платежи", "существующая интеграция")
+
+Rel(ib, sms, "СМС-коды и уведомления", "HTTPS")
+Rel(abs, sms, "СМС о ставке по обращениям", "существующая интеграция")
+Rel_D(sms, telecom, "Отправка СМС")
+
+Lay_R(prospect, client)
+Lay_R(client, staff)
+Lay_L(kafka, sms)
+
+@enduml
