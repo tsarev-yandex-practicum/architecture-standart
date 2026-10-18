@@ -1,0 +1,36 @@
+@startuml c4_context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+skinparam ranksep 90
+skinparam nodesep 70
+skinparam linetype polyline
+title C4 Context - Передача ставок в кол-центр (банк Стандарт)
+
+Person(credit, "Сотрудник кредитования", "Вносит базовые ставки")
+Person(operator, "Оператор кол-центра", "Консультирует клиента")
+Person_Ext(partner_op, "Оператор партнёра", "Консультирует клиента")
+
+System(abs, "АБС", "Ведение и публикация ставок")
+SystemQueue(kafka, "Корпоративная шина событий", "Apache Kafka")
+System(cc, "Система кол-центра", "Локальная копия ставок и экран оператора")
+System(ib, "Интернет-банк", "Контур Депозиты: копия ставок и файл для партнёра")
+System(sftp, "SFTP банка", "Папка с файлом ставок")
+System_Ext(partner, "Система партнёрского кол-центра", "Забор файла и показ ставок")
+
+Rel_D(credit, abs, "Базовые ставки")
+Rel_D(abs, kafka, "Каталог продуктов,\nбазовые и персональные ставки", "Kafka")
+Rel_D(kafka, cc, "Ставки. Сохраняет\nкаталог продуктов и базовые", "Kafka")
+Rel_D(kafka, ib, "Каталог продуктов,\nбазовые и персональные ставки", "Kafka")
+Rel_D(ib, sftp, "Файл каталога продуктов\nи базовых ставок", "SFTP")
+Rel_D(sftp, partner, "Файл каталога продуктов\nи базовых ставок", "SFTP")
+Rel_D(operator, cc, "Смотрит ставки")
+Rel_D(partner_op, partner, "Смотрит ставки")
+
+Lay_R(credit, operator)
+Lay_R(operator, partner_op)
+Lay_R(kafka, cc)
+Lay_R(ib, sftp)
+Lay_R(sftp, partner)
+
+@enduml

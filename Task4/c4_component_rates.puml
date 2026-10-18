@@ -1,0 +1,33 @@
+@startuml c4_component_rates
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+skinparam ranksep 70
+skinparam nodesep 60
+title C4 Component - Сервис ставок (контур Депозиты интернет-банка)
+
+ContainerQueue(kafka, "Корпоративная шина событий", "Apache Kafka", "Каталог продуктов, базовые и персональные ставки из АБС")
+Container(gw, "API-шлюз депозитов", ".NET", "Запросы ставок от сайта и интернет-банка")
+System(sftp, "SFTP банка", "Папка, откуда партнёр забирает файл")
+
+Container_Boundary(rates, "Сервис ставок") {
+  Component(consumer, "Получатель ставок", ".NET", "Читает сообщения из Kafka и обновляет копию")
+  Component(api, "API ставок", ".NET, REST", "Отдаёт ставки сайту и интернет-банку. Без изменений")
+  Component(export, "Формирование файла", ".NET", "После обновления копии собирает снимок каталога продуктов и базовых ставок")
+  Component(upload, "Выгрузка на SFTP", ".NET, SFTP-клиент", "Кладёт файл в папку на SFTP и проверяет запись")
+  ComponentDb(db, "БД ставок", "PostgreSQL", "Копия каталога продуктов, базовых и персональных ставок")
+}
+
+Rel_D(kafka, consumer, "Каталог продуктов,\nбазовые и персональные ставки", "Kafka")
+Rel_D(consumer, db, "Запись копии", "SQL")
+Rel_R(consumer, export, "Копия обновлена")
+Rel_D(export, db, "Чтение каталога продуктов\nи базовых ставок", "SQL")
+Rel_R(export, upload, "Файл")
+Rel_D(upload, sftp, "Файл каталога продуктов\nи базовых ставок", "SFTP")
+Rel_D(gw, api, "Ставки", "REST")
+Rel_D(api, db, "Чтение", "SQL")
+
+Lay_L(kafka, gw)
+Lay_L(consumer, api)
+
+@enduml

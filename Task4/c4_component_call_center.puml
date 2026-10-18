@@ -1,0 +1,28 @@
+@startuml c4_component_call_center
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+skinparam ranksep 70
+skinparam nodesep 60
+title C4 Component - Сервис ставок кол-центра
+
+Person(operator, "Оператор кол-центра", "Консультирует клиента по текущим ставкам банка")
+ContainerQueue(kafka, "Корпоративная шина событий", "Apache Kafka", "Каталог продуктов, базовые и персональные ставки из АБС")
+Container(workplace, "Рабочее место оператора", "Система кол-центра", "Существующий интерфейс оператора. Добавляется экран ставок")
+
+Container_Boundary(cc_rates, "Сервис ставок кол-центра") {
+  Component(consumer, "Получатель ставок", "Java, Spring Boot", "Оставляет каталог продуктов и базовые ставки. Каждое сообщение заменяет копию целиком")
+  Component(api, "API ставок", "Java, Spring Boot, REST", "Отдаёт рабочему месту каталог продуктов и базовые ставки")
+  ComponentDb(db, "Локальная копия ставок", "PostgreSQL", "Последний полный снимок каталога продуктов и базовых ставок")
+}
+
+Rel_D(kafka, consumer, "Каталог продуктов,\nбазовые и персональные ставки", "Kafka")
+Rel_D(consumer, db, "Замена копии", "SQL")
+Rel_D(operator, workplace, "Открывает экран ставок")
+Rel_D(workplace, api, "Каталог продуктов и базовые ставки", "REST")
+Rel_D(api, db, "Чтение", "SQL")
+
+Lay_R(kafka, operator)
+Lay_R(consumer, api)
+
+@enduml
